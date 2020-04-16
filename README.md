@@ -19,7 +19,7 @@
 **Commands**: <Required> [Optional]
 * */ban <Player> <Duration> <Reason>* -- Bans a player for duration, with reason
 * */history <Player> [Entries]* -- Get a player’s ban history, default entries is 100
-* */info <Player>* -- Get information about a player (DS, Rank, etc)
+* */playerinfo <Player>* -- Get information about a player (DS, Rank, etc)
 * */nick [Player] <Nickname>* -- Nicknames a player, or yourself, a given nickname
 * */realname [Player]* -- Get a player’s realname from a nickname
 * */realnick [Player]* -- Get a player’s nickname from a realname
