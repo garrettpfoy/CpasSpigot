@@ -35,14 +35,12 @@ import net.cpas.Cpas;
 import net.cpas.model.CpasGroupModel;
 import net.cpas.model.InfoModel;
 import net.luckperms.api.LuckPerms;
-import net.luckperms.api.context.ContextManager;
 import net.luckperms.api.context.DefaultContextKeys;
 import net.luckperms.api.model.group.Group;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.node.NodeType;
 import net.luckperms.api.node.types.InheritanceNode;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -53,7 +51,6 @@ import org.edgegamers.picklez.Storage.CacheDatabase;
 import org.edgegamers.picklez.Storage.Config;
 import org.edgegamers.picklez.Main.MinecraftCpas;
 import org.edgegamers.picklez.Storage.CpasPlayerCache;
-import org.edgegamers.picklez.Storage.PlayerData;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.collection.SerializedMap;
 
@@ -64,7 +61,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class onLogin implements Listener {
@@ -91,19 +87,6 @@ public class onLogin implements Listener {
         final CpasPlayerCache cache = CpasPlayerCache.getCache(event.getPlayer().getUniqueId());
 
         CacheDatabase.getInstance().load(event.getPlayer().getUniqueId(), cache);
-
-        PlayerData data = new PlayerData(event.getPlayer().getUniqueId().toString());
-        if (data.getNickname().equalsIgnoreCase("empty")) {
-            data.setNickname(event.getPlayer().getDisplayName());
-        }
-        if (data.getName().equalsIgnoreCase("empty")) {
-            data.setName(event.getPlayer().getName());
-        }
-        if (data.getSearch().equalsIgnoreCase("empty | empty")) {
-            data.setSearch("" + event.getPlayer().getName() + " | " + event.getPlayer().getName());
-        }
-
-        data.setRank(0);
 
 
         /*
@@ -137,17 +120,49 @@ public class onLogin implements Listener {
         @Override
         public void process(InfoModel response, String errorMessage) {
 
-            if (response.forumName == null || response.forumName.length() <= 0) {
+            /*
+            As of version 3.0 we no longer use PlayerData and have moved over to PlayerCache
+             */
+
+            //Now that we have the player cache, lets set everything to what we want it to be set as!
+
+            CpasPlayerCache playerData = CpasPlayerCache.getCache(playerUUID);
+            playerData.setUsername(player.getName());
+            playerData.setForumName(response.forumName);
+            playerData.setRankName(response.primaryGroup.name);
+            playerData.setDivisionName(response.divisionName);
+            playerData.setVerificationExpired(response.verificationExpired);
+            playerData.setDedicatedSupporter(response.dsInfo.isDedicatedSupporter);
+            playerData.setRank(response.primaryGroup.rank);
+
+            //All right, well all the *easy* data has been set, lets go through the harder ones.
+            List<String> groupsTemp = new ArrayList<>();
+
+            for(CpasGroupModel group : response.groups) {
+                groupsTemp.add(group.name);
+            }
+
+            playerData.setGroups(groupsTemp);
+
+            if(response.primaryGroup.rank > 0) {
+                playerData.setIsMember(true);
+                playerData.setIsRegistered(true);
+            }
+            else if(response.forumName == null || response.forumName.length() <= 0) {
+                //Player is a pub
+                playerData.setIsMember(false);
+                playerData.setIsRegistered(false);
                 event.setJoinMessage(null);
                 player.setDisplayName(player.getName());
                 Common.broadcast("&a&l(+) &6" + player.getDisplayName());
                 return;
             }
-            event.setJoinMessage(null);
+            else {
+                //Player probably has a rank of 0, so pub but not a member, PROBABLY?!
+                playerData.setIsRegistered(true);
+                playerData.setIsMember(false);
+            }
 
-            //Let's initialize the player data folder we make for every login
-            PlayerData data = new PlayerData(playerUUID.toString());
-            data.setForumName(response.forumName);
 
             final CpasGroupModel atLeastAdminGroup = pluginInstance.retrieveConfig().getAtLeastAdminGroup();
             //remove admin from list just in case they are in it
@@ -161,14 +176,17 @@ public class onLogin implements Listener {
             }
 
             /*
-            I played with the idea of hooking into LuckPerms specifically, however it was a bit
-            too complicated for what I need done. Vault is one of the most downloaded (if not THE most downloaded)
-            economy/permissions API plugins, so it would be rare to have a plugin that isn't using Vault.
+            LuckPerms is currently one of the only plugins that is lightweight, and strong enough to handle
+            a global network, and thus I am confident enough to strong-depend on it for the near future. Thus,
+            We will be using LuckPerms in CPAS to hook into
              */
 
             final LuckPerms permission = MinecraftCpas.getPerms();
 
-
+            /*
+            In theory this should be getOfflinePlayer, but due to the deprecation and the lack of support it
+            provides currently I have opted to keep it as a normal player.
+             */
             final Player player = Bukkit.getPlayer(playerUUID);
 
 
@@ -177,33 +195,22 @@ public class onLogin implements Listener {
             and if they aren't Leadership or above
              */
 
-
             //If they are leadership, we don't touch them
             if (response.primaryGroup.rank >= 60) {
                 //runs if leadership
-                Bukkit.getPlayer(playerUUID).setDisplayName(data.getNickname());
-                Bukkit.getPlayer(playerUUID).setCustomName(data.getNickname());
+                Bukkit.getPlayer(playerUUID).setDisplayName(playerData.getNickName());
+                Bukkit.getPlayer(playerUUID).setCustomName(playerData.getNickName());
                 Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
             }
-            //If they are dedicated supporter, we check their forum name and nickname
-            //If they are not the same, we use forum name, if they are the same
-            //we use nickname
+            /*
+            Here we handle DS, originally I had a check to see whether or not it matches their forum name, but this is silly as
+            it doesn't take into account Leadership setting the forum name for whatever reason. Only way to get a nickname that ISN'T
+            your forum name is via leadership command, so no need to check it here.
+             */
             else if (response.dsInfo.isDedicatedSupporter) {
-                String nickname = data.getNickname();
-                nickname = nickname.replaceAll("~", "");
-                nickname = Common.colorize(nickname);
-                String nickTemp = ChatColor.stripColor(nickname);
-                //Check nickname to forum name, if equal, we set display names to be nickname
-                //if not equal, we set display name to forum name
-                if (nickTemp.equalsIgnoreCase(response.forumName)) {
-                    Bukkit.getPlayer(playerUUID).setDisplayName(data.getNickname());
-                    Bukkit.getPlayer(playerUUID).setCustomName(data.getNickname());
+                    Bukkit.getPlayer(playerUUID).setDisplayName(playerData.getNickName());
+                    Bukkit.getPlayer(playerUUID).setCustomName(playerData.getNickName());
                     Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
-                } else {
-                    Bukkit.getPlayer(playerUUID).setDisplayName(response.forumName);
-                    Bukkit.getPlayer(playerUUID).setCustomName(response.forumName);
-                    Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
-                }
             }
             //If they are not leadership, nor are they DS, we just set display name to be
             //their forum name, no questions asked :)
@@ -238,10 +245,8 @@ public class onLogin implements Listener {
             }
 
             /*
-            In theory this really isn't needed unless you have LuckPerms installed.
-            All players are default given default, and assuming you setup LuckPerms the
-            common way most people will have most permissions set in the default group, so
-            we want to keep that here.
+            Default group normally should never be able to be taken away, however sometimes hooking into plugin
+            API's will result in unseen obstructions, so keeping this in to maintain the plugin's core features
              */
 
             try {
@@ -269,7 +274,6 @@ public class onLogin implements Listener {
                     }
                 }
             }
-            data.setRank(max);
             try {
                 addGroupToPlayer(primaryMap.getString(String.valueOf(max)), Bukkit.getPlayer(playerUUID), true);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -281,7 +285,7 @@ public class onLogin implements Listener {
 
             /*
             Here we give back the dedicated supporter rank (set in the config)
-            to a player if CPAS tells up they are a dedicated supporter.
+            to a player if CPAS tells us they are a dedicated supporter.
 
             ONLY IF it is enabled in Config
              */
@@ -296,6 +300,7 @@ public class onLogin implements Listener {
 
                     if (response.dsInfo.isDedicatedSupporter && response.dsInfo.joinMessage.length() != 0 && !(player.hasPermission("cpas.silent"))) {
                         String message = response.dsInfo.joinMessage;
+                        //Leadership instructed me to remove all ugly af colors from DS join messages
                         message = message.replaceAll("&0", "");
                         message = message.replaceAll("&l", "");
                         message = message.replaceAll("&m", "");
@@ -311,7 +316,6 @@ public class onLogin implements Listener {
                         Common.broadcast("&a&l(&a+&a&l) &6" + getRankFormatted(player) + player.getDisplayName());
                     }
                 } else {
-                    data.setDS(false);
                     try {
                         removeGroupFromPlayer("DS", Bukkit.getPlayer(playerUUID), true);
                     } catch (InterruptedException | TimeoutException | ExecutionException e) {
@@ -450,7 +454,7 @@ public class onLogin implements Listener {
 
 
         private static String getRankFormatted(Player player) {
-            PlayerData data = new PlayerData(player.getUniqueId().toString());
+            CpasPlayerCache data = CpasPlayerCache.getCache(player.getUniqueId());
             int rank = data.getRank();
 
             if (rank == 10) {
@@ -493,7 +497,7 @@ public class onLogin implements Listener {
                         user.data().add(node);
                         permissions.getUserManager().saveUser(user);
                     }
-                }).get(5, TimeUnit.SECONDS);
+                }).get(10, TimeUnit.SECONDS);
 
                 return true;
             } else {
@@ -520,7 +524,7 @@ public class onLogin implements Listener {
                         user.data().remove(node);
                         permissions.getUserManager().saveUser(user);
                     }
-                }).get(5, TimeUnit.SECONDS);
+                }).get(10, TimeUnit.SECONDS);
 
                 return true;
             } else {

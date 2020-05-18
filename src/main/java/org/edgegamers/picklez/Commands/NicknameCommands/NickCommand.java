@@ -3,7 +3,7 @@ package org.edgegamers.picklez.Commands.NicknameCommands;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
-import org.edgegamers.picklez.Storage.PlayerData;
+import org.edgegamers.picklez.Storage.CpasPlayerCache;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.command.SimpleCommand;
 
@@ -58,7 +58,7 @@ public class NickCommand extends SimpleCommand {
             String nickCheck = ChatColor.stripColor(nick);
             //Now we have the nickname without any color codes, lets check them to their data on file
             //to see if it matches their forum name
-            PlayerData data = new PlayerData(Bukkit.getPlayer(playerName).getUniqueId().toString());
+            CpasPlayerCache data = CpasPlayerCache.getCache(Bukkit.getPlayer(playerName).getUniqueId());
 
             if(!(data.getForumName().equalsIgnoreCase(nickCheck)) && !(user.hasPermission("cpas.nick.bypass"))) {
                 //Runs if not equal && player does not have bypass permission
@@ -74,8 +74,7 @@ public class NickCommand extends SimpleCommand {
             Bukkit.getPlayer(playerName).setCustomName(nick);
             Bukkit.getPlayer(playerName).setCustomNameVisible(true);
 
-            data.setNickname(nick);
-            data.setSearch(playerName + " | " + nick);
+            data.setNickName(nick);
 
             Common.tell(user, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bPlayer's nickname has been changed.");
             Common.tell(Bukkit.getPlayer(playerName), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYour nickname has been changed.");
@@ -98,7 +97,7 @@ public class NickCommand extends SimpleCommand {
             String nick = Common.colorize(nickTemp);
             String nickCheck = ChatColor.stripColor(nick);
 
-            PlayerData data = new PlayerData(user.getUniqueId().toString());
+            CpasPlayerCache data = CpasPlayerCache.getCache(user.getUniqueId());
 
             if(!(data.getForumName().equalsIgnoreCase(nickCheck)) && !(user.hasPermission("cpas.nick.bypass"))) {
                 //Runs if not equal && player does not have bypass permission
@@ -114,8 +113,7 @@ public class NickCommand extends SimpleCommand {
             Bukkit.getPlayer(playerName).setCustomName(nick);
             Bukkit.getPlayer(playerName).setCustomNameVisible(true);
 
-            data.setNickname(nick);
-            data.setSearch(playerName + " | " + nick);
+            data.setNickName(nick);
 
             Common.tell(Bukkit.getPlayer(playerName), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYour nickname has been changed.");
         }

@@ -1,7 +1,8 @@
 package org.edgegamers.picklez.Commands.AdminCommands;
 
+import net.cpas.Cpas;
 import org.bukkit.Bukkit;
-import org.edgegamers.picklez.Storage.PlayerData;
+import org.edgegamers.picklez.Storage.CpasPlayerCache;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.command.SimpleCommand;
 
@@ -22,8 +23,9 @@ public class KickCommand extends SimpleCommand {
             return;
         }
         else {
-            PlayerData kicker = new PlayerData(getPlayer().getUniqueId().toString());
-            PlayerData kicked = new PlayerData(Bukkit.getPlayer(args[0]).getUniqueId().toString());
+
+            CpasPlayerCache kicker = CpasPlayerCache.getCache(getPlayer().getUniqueId());
+            CpasPlayerCache kicked = CpasPlayerCache.getCache(Bukkit.getPlayer(args[0]).getUniqueId());
 
             if(kicker.getRank() < kicked.getRank()) {
                 Common.tell(getPlayer(), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYou are not able to kick players with a higher rank then you");
@@ -39,7 +41,7 @@ public class KickCommand extends SimpleCommand {
                 String kickMessage = Common.colorize("&cYou were kicked from this server!\n\n&cKicked by: &7" + kicker.getForumName() + "\n&cReason: &7&o" + reason + "\n\n&7Report Abuse at: &f&nhttps://edge-gamers.com");
 
                 Bukkit.getPlayer(args[0]).kickPlayer(kickMessage);
-                Common.broadcast("&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &f" + kicked.getName() + "&b was kicked by &f" + kicker.getForumName() + "&b for: &f" + reason);
+                Common.broadcast("&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &f" + kicked.getUsername() + "&b was kicked by &f" + kicker.getForumName() + "&b for: &f" + reason);
                 return;
             }
         }

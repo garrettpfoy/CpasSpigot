@@ -2,7 +2,7 @@ package org.edgegamers.picklez.Commands.NicknameCommands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.edgegamers.picklez.Storage.PlayerData;
+import org.edgegamers.picklez.Storage.CpasPlayerCache;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.command.SimpleCommand;
 
@@ -25,9 +25,8 @@ public class UnnickCommand extends SimpleCommand {
                 for(Player player : Bukkit.getOnlinePlayers()) {
                     if(player.getName().equalsIgnoreCase(playerName) || player.getDisplayName().equalsIgnoreCase(playerName)) {
                         player.setDisplayName(player.getName());
-                        PlayerData data = new PlayerData(player.getUniqueId().toString());
-                        data.setNickname(player.getName());
-                        data.setSearch(player.getName() + " | " + player.getName());
+                        CpasPlayerCache data = CpasPlayerCache.getCache(player.getUniqueId());
+                        data.setNickName(player.getName());
                         Common.tell(getPlayer(), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bPlayer's nickname has been reset!");
                     }
                 }
@@ -38,9 +37,8 @@ public class UnnickCommand extends SimpleCommand {
         }
         else {
             //Runs if unnicking yourself
-            PlayerData data = new PlayerData(getPlayer().getUniqueId().toString());
-            data.setNickname(getPlayer().getName());
-            data.setSearch(getPlayer().getName() + " | " + getPlayer().getName());
+            CpasPlayerCache data = CpasPlayerCache.getCache(getPlayer().getUniqueId());
+            data.setNickName(getPlayer().getName());
 
             getPlayer().setDisplayName(getPlayer().getName());
 

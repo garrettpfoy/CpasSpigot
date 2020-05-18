@@ -39,7 +39,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.edgegamers.picklez.Main.Instance;
 import org.edgegamers.picklez.Main.MinecraftCpas;
-import org.edgegamers.picklez.Storage.PlayerData;
+import org.edgegamers.picklez.Storage.CpasPlayerCache;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.command.SimpleCommand;
 
@@ -199,10 +199,10 @@ public class BanCommand extends SimpleCommand {
     }
 
     private boolean checkBanRules(Player admin, OfflinePlayer player) {
-        PlayerData adminData = new PlayerData(admin.getUniqueId().toString());
-        PlayerData playerData = new PlayerData(player.getUniqueId().toString());
+        CpasPlayerCache adminData = CpasPlayerCache.getCache(admin.getUniqueId());
+        CpasPlayerCache playerData = CpasPlayerCache.getCache(player.getUniqueId());
 
-        if(playerData.getName().equalsIgnoreCase("empty")) {
+        if(playerData.getUsername().equalsIgnoreCase("empty")) {
             Common.tell(admin, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bThat player has never joined the server before!");
             return false;
         }

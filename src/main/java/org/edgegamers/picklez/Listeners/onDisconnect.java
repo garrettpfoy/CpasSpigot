@@ -39,7 +39,6 @@ import org.edgegamers.picklez.Main.Instance;
 import org.edgegamers.picklez.Main.MinecraftCpas;
 import org.edgegamers.picklez.Storage.CacheDatabase;
 import org.edgegamers.picklez.Storage.CpasPlayerCache;
-import org.edgegamers.picklez.Storage.PlayerData;
 import org.mineacademy.fo.Common;
 
 public class onDisconnect implements Listener {
@@ -77,7 +76,7 @@ public class onDisconnect implements Listener {
     }
 
     private static String getRankFormatted(Player player) {
-        PlayerData data = new PlayerData(player.getUniqueId().toString());
+        CpasPlayerCache data = CpasPlayerCache.getCache(player.getUniqueId());
         int rank = data.getRank();
 
         if (rank == 10) {
