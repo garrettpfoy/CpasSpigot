@@ -1,4 +1,4 @@
-package org.edgegamers.picklez.Commands;
+package org.edgegamers.picklez.Commands.NicknameCommands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -23,7 +23,12 @@ public class NickCommand extends SimpleCommand {
     public void onCommand() {
         Player user = getPlayer();
 
-        if(args.length > 1) {
+        if(args.length == 0) {
+            Common.tell(getPlayer(), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bImproper syntax, please specify at least one argument (Nickname, <Player>)");
+            return;
+        }
+
+        else if(args.length > 1) {
             //Modify another player's nickname
             if(!(user.hasPermission("cpas.nick.others"))) {
                 Common.tell(user, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYou can't nickname other players!");
@@ -35,6 +40,12 @@ public class NickCommand extends SimpleCommand {
 
             String playerName = args[0];
             String nickTemp = args[1];
+            nickTemp = nickTemp.replaceAll("™", " ");
+            nickTemp = nickTemp.replaceAll("\u2122", " ");
+            nickTemp = nickTemp + "&r";
+            nickTemp = nickTemp.replaceAll("&k", "");
+            nickTemp = nickTemp.replaceAll("&1", "");
+            nickTemp = nickTemp.replaceAll("&0", "");
 
             if(Bukkit.getPlayer(playerName).hasPermission("cpas.nick.others") && !(user.hasPermission("cpas.nick.bypass"))) {
                 Common.tell(user, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYou can not nickname that player!");
@@ -55,7 +66,8 @@ public class NickCommand extends SimpleCommand {
                 return;
             }
 
-            nick = "~" + nick;
+            nick = "~" + nick + "&r";
+            nick = Common.colorize(nick);
 
             Bukkit.getPlayer(playerName).setPlayerListName(nick);
             Bukkit.getPlayer(playerName).setDisplayName(nick);
@@ -65,8 +77,8 @@ public class NickCommand extends SimpleCommand {
             data.setNickname(nick);
             data.setSearch(playerName + " | " + nick);
 
-            Common.tell(Bukkit.getPlayer(playerName), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bPlayer's nickname has been changed.");
-            Common.tell(user, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYour nickname has been changed.");
+            Common.tell(user, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bPlayer's nickname has been changed.");
+            Common.tell(Bukkit.getPlayer(playerName), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYour nickname has been changed.");
         }
         else {
             //Modify one's own nickname
@@ -76,6 +88,12 @@ public class NickCommand extends SimpleCommand {
             }
             String playerName = user.getName();
             String nickTemp = args[0];
+            nickTemp = nickTemp.replaceAll("™", " ");
+            nickTemp = nickTemp.replaceAll("\u2122", " ");
+            nickTemp = nickTemp + "&r";
+            nickTemp = nickTemp.replaceAll("&k", "");
+            nickTemp = nickTemp.replaceAll("&1", "");
+            nickTemp = nickTemp.replaceAll("&0", "");
 
             String nick = Common.colorize(nickTemp);
             String nickCheck = ChatColor.stripColor(nick);
@@ -88,7 +106,8 @@ public class NickCommand extends SimpleCommand {
                 return;
             }
 
-            nick = "~" + nick;
+            nick = "~" + nick + "&r";
+            nick = Common.colorize(nick);
 
             Bukkit.getPlayer(playerName).setPlayerListName(nick);
             Bukkit.getPlayer(playerName).setDisplayName(nick);

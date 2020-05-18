@@ -28,7 +28,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.edgegamers.picklez.Commands;
+package org.edgegamers.picklez.Commands.AdminCommands;
 
 import lombok.NonNull;
 import net.cpas.Cpas;
@@ -160,6 +160,10 @@ public class BanCommand extends SimpleCommand {
         }
         else {
             kickMessage = Common.colorize("&cYou were banned from this server!\n\n&cBanned by: &7" + banner.getName() + "\n&cDuration: &7" + duration + " &7minute(s)" + "\n&cReason: &7&o" + reason + "\n\n&7Contest at: &f&nhttps://edge-gamers.com");
+        }
+
+        if(bannedOffline.getPlayer() == null) {
+            return;
         }
 
         if(bannedOffline.getPlayer().isOnline()) {

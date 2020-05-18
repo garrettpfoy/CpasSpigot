@@ -1,6 +1,7 @@
-package org.edgegamers.picklez.Commands;
+package org.edgegamers.picklez.Commands.NicknameCommands;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.command.SimpleCommand;
@@ -19,7 +20,9 @@ public class RealnameCommand extends SimpleCommand {
             String pName = args[0];
 
             for(Player player : Bukkit.getOnlinePlayers()) {
-                if(player.getDisplayName().equalsIgnoreCase(pName)) {
+                String displayFormatted = player.getDisplayName();
+                String display = ChatColor.stripColor(displayFormatted);
+                if(display.equalsIgnoreCase(pName)) {
                     Common.tell(getPlayer(), "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &f" + args[0] +"'s &b real name is: &f&o" + player.getName());
                 }
             }

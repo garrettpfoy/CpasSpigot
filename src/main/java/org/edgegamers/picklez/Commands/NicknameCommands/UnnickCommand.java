@@ -1,4 +1,4 @@
-package org.edgegamers.picklez.Commands;
+package org.edgegamers.picklez.Commands.NicknameCommands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;

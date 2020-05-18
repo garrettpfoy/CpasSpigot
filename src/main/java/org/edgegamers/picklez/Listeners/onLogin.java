@@ -32,43 +32,46 @@ package org.edgegamers.picklez.Listeners;
 
 import lombok.NonNull;
 import net.cpas.Cpas;
-import net.cpas.model.BanInfoModel;
 import net.cpas.model.CpasGroupModel;
 import net.cpas.model.InfoModel;
 import net.luckperms.api.LuckPerms;
+import net.luckperms.api.context.ContextManager;
 import net.luckperms.api.context.DefaultContextKeys;
 import net.luckperms.api.model.group.Group;
-import net.luckperms.api.node.Node;
+import net.luckperms.api.model.user.User;
 import net.luckperms.api.node.NodeType;
-import net.luckperms.api.node.types.ChatMetaNode;
 import net.luckperms.api.node.types.InheritanceNode;
-import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.edgegamers.picklez.Storage.CacheDatabase;
 import org.edgegamers.picklez.Storage.Config;
-import org.edgegamers.picklez.Main.Instance;
 import org.edgegamers.picklez.Main.MinecraftCpas;
+import org.edgegamers.picklez.Storage.CpasPlayerCache;
 import org.edgegamers.picklez.Storage.PlayerData;
 import org.mineacademy.fo.Common;
 import org.mineacademy.fo.collection.SerializedMap;
 
 import javax.naming.Context;
 import java.net.InetAddress;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collector;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class onLogin implements Listener {
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent event) {
+        event.setJoinMessage(null);
         /*
         This is run everytime a player logs in (obviously), here I will pretty much
         get check if the player is online (which should almost always occur), and then pretty much handles all the
@@ -81,29 +84,33 @@ public class onLogin implements Listener {
          */
 
         final UUID playerUUID = event.getPlayer().getUniqueId();
-        final InetAddress playerAddress = event.getPlayer().getAddress().getAddress();
-        final Instance instance = new Instance();
+        final InetAddress playerAddress = Objects.requireNonNull(event.getPlayer().getAddress()).getAddress();
 
         event.setJoinMessage(null);
 
+        final CpasPlayerCache cache = CpasPlayerCache.getCache(event.getPlayer().getUniqueId());
+
+        CacheDatabase.getInstance().load(event.getPlayer().getUniqueId(), cache);
+
         PlayerData data = new PlayerData(event.getPlayer().getUniqueId().toString());
-        if(data.getNickname().equalsIgnoreCase("empty")) {
+        if (data.getNickname().equalsIgnoreCase("empty")) {
             data.setNickname(event.getPlayer().getDisplayName());
         }
-        if(data.getName().equalsIgnoreCase("empty")) {
+        if (data.getName().equalsIgnoreCase("empty")) {
             data.setName(event.getPlayer().getName());
         }
-        if(data.getSearch().equalsIgnoreCase("empty | empty")) {
+        if (data.getSearch().equalsIgnoreCase("empty | empty")) {
             data.setSearch("" + event.getPlayer().getName() + " | " + event.getPlayer().getName());
         }
 
-
+        data.setRank(0);
 
 
         /*
         Runs everytime a player logs in, and is technically online.
          */
-        Cpas.getInstance().getInfo(playerUUID.toString(), playerAddress.getHostAddress(), false, new ProcessInfoModelResponse(instance.getInstance(), playerUUID, event.getPlayer(), true, event));
+
+        Cpas.getInstance().getInfo(playerUUID.toString(), playerAddress.getHostAddress(), false, new ProcessInfoModelResponse((MinecraftCpas) MinecraftCpas.getInstance(), playerUUID, event.getPlayer(), true, event));
 
     }
 
@@ -127,22 +134,16 @@ public class onLogin implements Listener {
             this.event = event;
         }
 
-        private boolean checkContainingGroups(List<CpasGroupModel> groups, CpasGroupModel group) {
-
-            /*
-            This goes through all groups CPAS gives us, and checks with the group given to see if they are a match
-            if they are, it returns true.
-             */
-            for(CpasGroupModel cpasGroupModel : groups) {
-                if(cpasGroupModel.rank == group.rank && cpasGroupModel.name.equals(group.name)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         @Override
         public void process(InfoModel response, String errorMessage) {
+
+            if (response.forumName == null || response.forumName.length() <= 0) {
+                event.setJoinMessage(null);
+                player.setDisplayName(player.getName());
+                Common.broadcast("&a&l(+) &6" + player.getDisplayName());
+                return;
+            }
+            event.setJoinMessage(null);
 
             //Let's initialize the player data folder we make for every login
             PlayerData data = new PlayerData(playerUUID.toString());
@@ -151,11 +152,11 @@ public class onLogin implements Listener {
             final CpasGroupModel atLeastAdminGroup = pluginInstance.retrieveConfig().getAtLeastAdminGroup();
             //remove admin from list just in case they are in it
             final InfoModel adminInfoModel = pluginInstance.getPlayerInfoModel(playerUUID);
-            if(adminInfoModel != null) {
+            if (adminInfoModel != null) {
                 pluginInstance.getAdminPlayerCache().remove(adminInfoModel);
             }
             //adds an admin to the list
-            if(checkContainingGroups(response.groups, atLeastAdminGroup)) {
+            if (checkContainingGroups(response.groups, atLeastAdminGroup)) {
                 pluginInstance.getAdminPlayerCache().add(response);
             }
 
@@ -165,8 +166,11 @@ public class onLogin implements Listener {
             economy/permissions API plugins, so it would be rare to have a plugin that isn't using Vault.
              */
 
-            final LuckPerms permission = pluginInstance.getPerms();
+            final LuckPerms permission = MinecraftCpas.getPerms();
+
+
             final Player player = Bukkit.getPlayer(playerUUID);
+
 
             /*
             Here we set their name to their forum name if they are not DS
@@ -175,7 +179,7 @@ public class onLogin implements Listener {
 
 
             //If they are leadership, we don't touch them
-            if(response.primaryGroup.rank >= 60) {
+            if (response.primaryGroup.rank >= 60) {
                 //runs if leadership
                 Bukkit.getPlayer(playerUUID).setDisplayName(data.getNickname());
                 Bukkit.getPlayer(playerUUID).setCustomName(data.getNickname());
@@ -184,18 +188,18 @@ public class onLogin implements Listener {
             //If they are dedicated supporter, we check their forum name and nickname
             //If they are not the same, we use forum name, if they are the same
             //we use nickname
-            else if(response.dsInfo.isDedicatedSupporter) {
+            else if (response.dsInfo.isDedicatedSupporter) {
                 String nickname = data.getNickname();
+                nickname = nickname.replaceAll("~", "");
                 nickname = Common.colorize(nickname);
                 String nickTemp = ChatColor.stripColor(nickname);
                 //Check nickname to forum name, if equal, we set display names to be nickname
                 //if not equal, we set display name to forum name
-                if(nickTemp.equalsIgnoreCase(response.forumName)) {
+                if (nickTemp.equalsIgnoreCase(response.forumName)) {
                     Bukkit.getPlayer(playerUUID).setDisplayName(data.getNickname());
                     Bukkit.getPlayer(playerUUID).setCustomName(data.getNickname());
                     Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
-                }
-                else {
+                } else {
                     Bukkit.getPlayer(playerUUID).setDisplayName(response.forumName);
                     Bukkit.getPlayer(playerUUID).setCustomName(response.forumName);
                     Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
@@ -210,20 +214,6 @@ public class onLogin implements Listener {
             }
 
 
-////                            true false
-            if(!(response.primaryGroup.rank >= 60) || !(response.dsInfo.isDedicatedSupporter)) {
-                // IS NOT LEADERSHIP  & IS NOT DEDICATED SUPPORTER
-                Bukkit.getPlayer(playerUUID).setDisplayName(response.forumName);
-                Bukkit.getPlayer(playerUUID).setCustomName(response.forumName);
-                Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
-            }
-            else {
-                //If they ARE leadership, lets get their nickname on file!
-                Bukkit.getPlayer(playerUUID).setDisplayName(data.getNickname());
-                Bukkit.getPlayer(playerUUID).setCustomName(data.getNickname());
-                Bukkit.getPlayer(playerUUID).setCustomNameVisible(true);
-            }
-
             /*
             Here I go through the player's groups, and if that group is defined in pretty much any
             of the config role lists, I remove them.
@@ -237,13 +227,13 @@ public class onLogin implements Listener {
 
             final Config config = pluginInstance.retrieveConfig();
 
-            for(String group : groups) {
-                if(checkIfRole(group, config)) {
-                    Node temp = Node.builder("group." + group)
-                            .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                            .build();
-
-                    permission.getUserManager().getUser(playerUUID).getNodes().remove(temp);
+            for (String group : groups) {
+                if (checkIfRole(group, config)) {
+                    try {
+                        removeGroupFromPlayer(group, Bukkit.getPlayer(playerUUID), true);
+                    } catch (InterruptedException | TimeoutException | ExecutionException e) {
+                        Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
+                    }
                 }
             }
 
@@ -254,10 +244,11 @@ public class onLogin implements Listener {
             we want to keep that here.
              */
 
-            Node defaultGroup = Node.builder("group.default")
-                    .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                    .build();
-            permission.getUserManager().getUser(playerUUID).getNodes().add(defaultGroup);
+            try {
+                addGroupToPlayer("default", Bukkit.getPlayer(playerUUID), true);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
+            }
 
             /*
             Here we get the primary rank from CPAS, and if the config has that
@@ -271,19 +262,20 @@ public class onLogin implements Listener {
 
             final SerializedMap primaryMap = config.getPrimaryGroups();
             int max = 0;
-            for(String rank : primaryMap.keySet()) {
-                if(isMemberOfGroup(response,Integer.parseInt(rank))) {
-                    if(max < Integer.parseInt(rank)) {
+            for (String rank : primaryMap.keySet()) {
+                if (isMemberOfGroup(response, Integer.parseInt(rank))) {
+                    if (max < Integer.parseInt(rank)) {
                         max = Integer.parseInt(rank);
                     }
                 }
             }
             data.setRank(max);
-            Node primaryGroup = Node.builder("group." + primaryMap.getString(String.valueOf(max)))
-                    .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                    .build();
+            try {
+                addGroupToPlayer(primaryMap.getString(String.valueOf(max)), Bukkit.getPlayer(playerUUID), true);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
+            }
 
-            permission.getUserManager().getUser(playerUUID).getNodes().add(primaryGroup);
 
 
 
@@ -294,32 +286,38 @@ public class onLogin implements Listener {
             ONLY IF it is enabled in Config
              */
 
-            if(pluginInstance.retrieveConfig().isUseDsGroup() && login) {
-                if(response.dsInfo.isDedicatedSupporter) {
-                    data.setDS(true);
-                    Node dsGroup = Node.builder("group.DS")
-                            .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                            .build();
-
-                    permission.getUserManager().getUser(playerUUID).getNodes().add(dsGroup);
-                    if(response.dsInfo.isDedicatedSupporter && response.dsInfo.joinMessage.length() != 0 && !(player.hasPermission("cpas.silent"))) {
-                        Common.broadcast("&a&l(&a+&a&l) &6" + player.getDisplayName() + " &8- &7" + response.dsInfo.joinMessage);
+            if (pluginInstance.retrieveConfig().isUseDsGroup() && login) {
+                if (response.dsInfo.isDedicatedSupporter) {
+                    try {
+                        addGroupToPlayer("DS", Bukkit.getPlayer(playerUUID), true);
+                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                        Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
                     }
-                    else if(player.hasPermission("cpas.silent")) {
+
+                    if (response.dsInfo.isDedicatedSupporter && response.dsInfo.joinMessage.length() != 0 && !(player.hasPermission("cpas.silent"))) {
+                        String message = response.dsInfo.joinMessage;
+                        message = message.replaceAll("&0", "");
+                        message = message.replaceAll("&l", "");
+                        message = message.replaceAll("&m", "");
+                        message = message.replaceAll("&n", "");
+                        message = message.replaceAll("&1", "");
+                        message = message.replaceAll("&k", "");
+
+
+                        Common.broadcast("&a&l(&a+&a&l) &6" + getRankFormatted(player) + "&6" + player.getDisplayName() + " &8- &7" + message);
+                    } else if (player.hasPermission("cpas.silent")) {
                         Common.tell(player, "&1&lE&9&lG&f&lO &c&lMAUL &f&l\u00BB &bYou have logged in silently!");
+                    } else {
+                        Common.broadcast("&a&l(&a+&a&l) &6" + getRankFormatted(player) + player.getDisplayName());
                     }
-                    else {
-                        Common.broadcast("&a&l(&a+&a&l) &6" + player.getDisplayName());
-                    }
-                }
-                else {
+                } else {
                     data.setDS(false);
-                    Node dsGroup = Node.builder("group.DS")
-                            .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                            .build();
-
-                    permission.getUserManager().getUser(playerUUID).getNodes().remove(dsGroup);
-                    Common.broadcast("&a&l(&a+&a&l) &6" + player.getDisplayName());
+                    try {
+                        removeGroupFromPlayer("DS", Bukkit.getPlayer(playerUUID), true);
+                    } catch (InterruptedException | TimeoutException | ExecutionException e) {
+                        Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
+                    }
+                    Common.broadcast("&a&l(&a+&a&l) &6" + getRankFormatted(player) + player.getDisplayName());
                 }
             }
 
@@ -331,13 +329,13 @@ public class onLogin implements Listener {
              */
 
             final SerializedMap secondaryMap = config.getSecondaryGroups();
-            for(String rank : secondaryMap.keySet()) {
-                if(isMemberOfGroup(response, Integer.parseInt(rank))) {
-                    Node secondaryGroup = Node.builder("group." + secondaryMap.getString(rank))
-                            .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                            .build();
-
-                    permission.getUserManager().getUser(playerUUID).getNodes().add(secondaryGroup);
+            for (String rank : secondaryMap.keySet()) {
+                if (isMemberOfGroup(response, Integer.parseInt(rank))) {
+                    try {
+                        addGroupToPlayer(secondaryMap.getString(rank), Bukkit.getPlayer(playerUUID), true);
+                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                        Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
+                    }
                 }
             }
 
@@ -348,33 +346,55 @@ public class onLogin implements Listener {
              */
 
             final SerializedMap divisionMap = config.getDivisionGroups();
-            for(String rank : divisionMap.keySet()) {
-                if(isMemberOfGroup(response, Integer.parseInt(rank))) {
-                    Node divisionGroup = Node.builder("group." + divisionMap.getString(rank))
-                            .withContext(DefaultContextKeys.SERVER_KEY, "global")
-                            .build();
-
-                    permission.getUserManager().getUser(playerUUID).getNodes().add(divisionGroup);
+            for (String rank : divisionMap.keySet()) {
+                if (isMemberOfGroup(response, rank)) {
+                    try {
+                        addGroupToPlayer(divisionMap.getString(rank), Bukkit.getPlayer(playerUUID), true);
+                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                        Common.broadcast("&c&lERROR &8\u00BB &7" + e.getMessage());
+                    }
                 }
             }
-
-    }
-
-    private boolean isMemberOfGroup(InfoModel response, int rank) {
-        for(CpasGroupModel group : response.groups) {
-            if(group.rank == rank) {
-                return true;
-            }
         }
-        return false;
-     }
 
-    @Override
+        @Override
         public Class<InfoModel> getModelClass() {
             return InfoModel.class;
-    }
+        }
 
-    public boolean checkIfRole(String group, Config config) {
+        private boolean checkContainingGroups(List<CpasGroupModel> groups, CpasGroupModel group) {
+
+            /*
+            This goes through all groups CPAS gives us, and checks with the group given to see if they are a match
+            if they are, it returns true.
+             */
+            for (CpasGroupModel cpasGroupModel : groups) {
+                if (cpasGroupModel.rank == group.rank && cpasGroupModel.name.equals(group.name)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean isMemberOfGroup(InfoModel response, int rank) {
+            for (CpasGroupModel group : response.groups) {
+                if (group.rank == rank) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean isMemberOfGroup(InfoModel response, String rank) {
+            //Checks if the player is a m
+            if(response.division.equalsIgnoreCase(rank)) {
+                return true;
+            }
+            return false;
+        }
+
+        public static boolean checkIfRole(String group, Config config) {
+
             /*
             This pretty much just takes a group a player has, and iterates through all defined roles
             in the config, and if they match, it returns true
@@ -387,8 +407,8 @@ public class onLogin implements Listener {
            returns true.
             */
             Set<String> primaryKeys = config.getPrimaryGroups().keySet();
-            for(String key : primaryKeys) {
-                if(config.getPrimaryGroups().getString(key).equalsIgnoreCase(group)) {
+            for (String key : primaryKeys) {
+                if (config.getPrimaryGroups().getString(key).equalsIgnoreCase(group)) {
                     return true;
                 }
             }
@@ -401,8 +421,8 @@ public class onLogin implements Listener {
             */
 
             Set<String> secondaryKeys = config.getSecondaryGroups().keySet();
-            for(String key : secondaryKeys) {
-                if(config.getSecondaryGroups().getString(key).equalsIgnoreCase(group)) {
+            for (String key : secondaryKeys) {
+                if (config.getSecondaryGroups().getString(key).equalsIgnoreCase(group)) {
                     return true;
                 }
             }
@@ -415,8 +435,8 @@ public class onLogin implements Listener {
            */
 
             Set<String> divisionKeys = config.getDivisionGroups().keySet();
-            for(String key : divisionKeys) {
-                if(config.getDivisionGroups().getString(key).equalsIgnoreCase(group)) {
+            for (String key : divisionKeys) {
+                if (config.getDivisionGroups().getString(key).equalsIgnoreCase(group)) {
                     return true;
                 }
             }
@@ -425,8 +445,87 @@ public class onLogin implements Listener {
             If all those checks fail, we will return false assuming we checked all of the ones they
             wanted removed
              */
-
             return false;
-    }
+        }
+
+
+        private static String getRankFormatted(Player player) {
+            PlayerData data = new PlayerData(player.getUniqueId().toString());
+            int rank = data.getRank();
+
+            if (rank == 10) {
+                return Common.colorize("&7=(&be&7)= &6");
+            } else if (rank == 20) {
+                return Common.colorize("&7=(&3eG&7)= &6");
+            } else if (rank == 30) {
+                return Common.colorize("&7=(&9eGO&7)= &6");
+            } else if (rank == 60) {
+                return Common.colorize("&7[&aManager&7] &6");
+            } else if (rank == 70) {
+                return Common.colorize("&7[&2SrMgr&7] &6");
+            } else if (rank == 90) {
+                return Common.colorize("&7[&dComMgr&7] &6");
+            } else if (rank == 91) {
+                return Common.colorize("&7[&4Director&7] &6");
+            } else {
+                return "";
+            }
+        }
+
+        private static boolean addGroupToPlayer(String groupName, OfflinePlayer player, boolean isGlobal) throws InterruptedException, ExecutionException, TimeoutException {
+
+            LuckPerms permissions = MinecraftCpas.getPerms();
+
+            Group group = permissions.getGroupManager().getGroup(groupName);
+
+
+            if (group != null) {
+                CompletableFuture<User> userFuture = permissions.getUserManager().loadUser(player.getUniqueId());
+
+                userFuture.thenAcceptAsync(user -> {
+                    if (isGlobal) {
+                        InheritanceNode node = InheritanceNode.builder(groupName).withContext(DefaultContextKeys.SERVER_KEY, "global").value(true).build();
+                        user.data().add(node);
+
+                        permissions.getUserManager().saveUser(user);
+                    } else {
+                        InheritanceNode node = InheritanceNode.builder(groupName).value(true).build();
+                        user.data().add(node);
+                        permissions.getUserManager().saveUser(user);
+                    }
+                }).get(5, TimeUnit.SECONDS);
+
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        private static boolean removeGroupFromPlayer(String groupName, Player player, boolean isGlobal) throws InterruptedException, ExecutionException, TimeoutException {
+
+            LuckPerms permissions = MinecraftCpas.getPerms();
+
+            Group group = permissions.getGroupManager().getGroup(groupName);
+
+            if (group != null) {
+                CompletableFuture<User> userFuture = permissions.getUserManager().loadUser(player.getUniqueId());
+
+                userFuture.thenAcceptAsync(user -> {
+                    if (isGlobal) {
+                        InheritanceNode node = InheritanceNode.builder(groupName).withContext(DefaultContextKeys.SERVER_KEY, "global").value(true).build();
+                        user.data().remove(node);
+                        permissions.getUserManager().saveUser(user);
+                    } else {
+                        InheritanceNode node = InheritanceNode.builder(groupName).value(true).build();
+                        user.data().remove(node);
+                        permissions.getUserManager().saveUser(user);
+                    }
+                }).get(5, TimeUnit.SECONDS);
+
+                return true;
+            } else {
+                return false;
+            }
+        }
     }
 }

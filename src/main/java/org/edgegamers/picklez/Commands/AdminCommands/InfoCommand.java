@@ -28,7 +28,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.edgegamers.picklez.Commands;
+package org.edgegamers.picklez.Commands.AdminCommands;
 
 import lombok.NonNull;
 import net.cpas.Cpas;
@@ -85,13 +85,14 @@ public class InfoCommand extends SimpleCommand {
                 return;
             }
 
-            Common.tell(sender, "&8&l---------------[ &9" + target.getName() + " &7Info &8&l]---------------");
+            Common.tell(sender, "&8&l---------------[ &9" + "Player" + " &7Info &8&l]---------------");
             if(infoModel.userId > 0) {
                 Common.tell(sender, "&7");
                 Common.tell(sender, "&3Forum Name: &7" + infoModel.forumName);
                 Common.tell(sender, "&3Rank: &7" + infoModel.primaryGroup.name);
-                Common.tell(sender, "&3Division: &7" + infoModel.divisionName);
+                Common.tell(sender, "&3Division: &7" + infoModel.division);
                 Common.tell(sender, "&3Dedicated Supporter: &7" + infoModel.dsInfo.isDedicatedSupporter);
+                Common.tell(sender, "&3UUID: &7" + target.getUniqueId().toString());
                 Common.tell(sender, "&7");
                 Common.tell(sender, "&8&l----------------------------------------");
             }
@@ -101,6 +102,7 @@ public class InfoCommand extends SimpleCommand {
                 Common.tell(sender, "&3Rank: &7N/A");
                 Common.tell(sender, "&3Division: &7N/A");
                 Common.tell(sender, "&3Dedicated Supporter: &7" + infoModel.dsInfo.isDedicatedSupporter);
+                Common.tell(sender, "&3UUID: &7" + target.getUniqueId().toString());
                 Common.tell(sender, "&3");
                 Common.tell(sender, "&8&l----------------------------------------");
             }

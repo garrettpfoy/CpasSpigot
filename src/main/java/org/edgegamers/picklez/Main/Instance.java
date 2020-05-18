@@ -52,4 +52,8 @@ public class Instance {
         return instance;
     }
 
+    public String getResponse() {
+        return "Response given from singleton";
+    }
+
 }

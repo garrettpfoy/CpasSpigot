@@ -32,14 +32,23 @@ package org.edgegamers.picklez.Main;
 
 import net.cpas.model.InfoModel;
 import net.luckperms.api.LuckPerms;
-import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.RegisteredServiceProvider;
-import org.edgegamers.picklez.Commands.*;
+import org.edgegamers.picklez.Commands.AdminCommands.*;
+import org.edgegamers.picklez.Commands.NicknameCommands.NickCommand;
+import org.edgegamers.picklez.Commands.NicknameCommands.RealnameCommand;
+import org.edgegamers.picklez.Commands.NicknameCommands.RealnickCommand;
+import org.edgegamers.picklez.Commands.NicknameCommands.UnnickCommand;
+import org.edgegamers.picklez.Commands.NoteCommands.AddNoteCommand;
+import org.edgegamers.picklez.Commands.NoteCommands.GetNotesCommand;
+import org.edgegamers.picklez.Commands.NoteCommands.RemoveNoteCommand;
 import org.edgegamers.picklez.Listeners.onAuth;
+import org.edgegamers.picklez.Listeners.onPlayerChat;
+import org.edgegamers.picklez.Storage.CacheDatabase;
 import org.edgegamers.picklez.Storage.Config;
 import org.edgegamers.picklez.Listeners.onDisconnect;
 import org.edgegamers.picklez.Listeners.onLogin;
+import org.edgegamers.picklez.Storage.SQLConfig;
 import org.mineacademy.fo.plugin.SimplePlugin;
 
 import java.util.TreeSet;
@@ -49,8 +58,9 @@ public class MinecraftCpas extends SimplePlugin {
 
     private Config config;
     private TreeSet<InfoModel> adminPlayerCache;
-    private LuckPerms api;
+    private static LuckPerms api;
     private MinecraftCpas main;
+    private SQLConfig sqlConfig;
 
     @Override
     public void onPluginStart() {
@@ -67,12 +77,24 @@ public class MinecraftCpas extends SimplePlugin {
         getLogger().info("Loading configuration files...");
         //Loads new config
         config = new Config();
+        sqlConfig = new SQLConfig();
         getLogger().info("Done!");
 
         getLogger().info("Configuring CPAS...");
         //loads CPAS/configs CPAS
         config.configCpas();
         getLogger().info("Done!");
+
+        getLogger().info("Checking to see if mySQL is supported...");
+
+        if(sqlConfig.isEnabled()) {
+            getLogger().info("Attempting to connect to database...");
+            CacheDatabase.getInstance().connect(sqlConfig.getHost(), sqlConfig.getPort(), sqlConfig.getDatabase(), sqlConfig.getUser(), sqlConfig.getPassword(), sqlConfig.getTable());
+            getLogger().info("If there aren't any errors, it was a success! Good job friend!");
+        }
+        else {
+            getLogger().info("Opted not to load to database, warns will not work!");
+        }
 
 
         //Sets up admin player cache
@@ -83,6 +105,7 @@ public class MinecraftCpas extends SimplePlugin {
         registerEvents(new onDisconnect());
         registerEvents(new onLogin());
         registerEvents(new onAuth());
+        registerEvents(new onPlayerChat());
         getLogger().info("Done!");
 
         getLogger().info("Attempting to load commands...");
@@ -94,6 +117,13 @@ public class MinecraftCpas extends SimplePlugin {
         registerCommand(new RealnameCommand());
         registerCommand(new UnnickCommand());
         registerCommand(new RealnickCommand());
+        new UnMuteCommand().register(true);
+        new MuteCommand().register(true);
+        new MuteHistoryCommand().register(true);
+        new AddNoteCommand().register(true);
+        new RemoveNoteCommand().register(true);
+        new GetNotesCommand().register(true);
+        new KickCommand().register(true);
         getLogger().info("Done!");
 
         getLogger().info("Plugin has been enabled!");
@@ -120,7 +150,11 @@ public class MinecraftCpas extends SimplePlugin {
         return adminPlayerCache;
     }
 
-    public LuckPerms getPerms() {
+    public static LuckPerms getPerms() {
         return api;
+    }
+
+    private static String getResponse() {
+        return "Response Given from Main Instance";
     }
 }

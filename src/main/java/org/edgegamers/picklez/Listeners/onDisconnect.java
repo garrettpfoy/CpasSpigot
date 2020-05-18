@@ -37,6 +37,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.edgegamers.picklez.Main.Instance;
 import org.edgegamers.picklez.Main.MinecraftCpas;
+import org.edgegamers.picklez.Storage.CacheDatabase;
+import org.edgegamers.picklez.Storage.CpasPlayerCache;
+import org.edgegamers.picklez.Storage.PlayerData;
 import org.mineacademy.fo.Common;
 
 public class onDisconnect implements Listener {
@@ -52,6 +55,12 @@ public class onDisconnect implements Listener {
     public void onDisconnect(PlayerQuitEvent event) {
         final Player player = event.getPlayer();
 
+
+        CpasPlayerCache cache = CpasPlayerCache.getCache(player.getUniqueId());
+
+        Common.runLaterAsync(() -> CacheDatabase.getInstance().save(event.getPlayer().getName(), player.getUniqueId(), cache));
+
+
         if(player.isOnline()) {
             final InfoModel adminInfoModel = instance.getPlayerInfoModel(player.getUniqueId());
             if(adminInfoModel != null) {
@@ -59,11 +68,34 @@ public class onDisconnect implements Listener {
             }
         }
         if(!(player.hasPermission("cpas.silent"))) {
-            String coloredMessage = Common.colorize("&c&l(&c-&c&l) &6" + event.getPlayer().getDisplayName());
+            String coloredMessage = Common.colorize("&c&l(&c-&c&l) " + getRankFormatted(event.getPlayer()) + "&6" + event.getPlayer().getDisplayName());
             event.setQuitMessage(coloredMessage);
         }
         else {
             event.setQuitMessage(null);
+        }
+    }
+
+    private static String getRankFormatted(Player player) {
+        PlayerData data = new PlayerData(player.getUniqueId().toString());
+        int rank = data.getRank();
+
+        if (rank == 10) {
+            return Common.colorize("&7=(&be&7)= &6");
+        } else if (rank == 20) {
+            return Common.colorize("&7=(&3eG&7)= &6");
+        } else if (rank == 30) {
+            return Common.colorize("&7=(&9eGO&7)= &6");
+        } else if (rank == 60) {
+            return Common.colorize("&7[&aManager&7] &6");
+        } else if (rank == 70) {
+            return Common.colorize("&7[&2SrMgr&7] &6");
+        } else if (rank == 90) {
+            return Common.colorize("&7[&dComMgr&7] &6");
+        } else if (rank == 91) {
+            return Common.colorize("&7[&4Director&7] &6");
+        } else {
+            return "";
         }
     }
 

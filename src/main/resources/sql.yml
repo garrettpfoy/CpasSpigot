@@ -1,0 +1,8 @@
+mySQL:
+  enabled: false
+  host: "EMPTY"
+  port: 0
+  databaseName: "EMPTY"
+  username: "EMPTY"
+  password: "EMPTY"
+  table: "EMPTY"

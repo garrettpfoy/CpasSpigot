@@ -11,6 +11,10 @@ public class PlayerData extends YamlConfig {
     String search;
     String forumName;
 
+    /*
+    Deprecated as of version 3.0
+     */
+
     public PlayerData(String uuid) {
         loadConfiguration("player.yml", "Players/" + uuid + ".yml");
     }
