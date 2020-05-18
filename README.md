@@ -1,30 +1,34 @@
-# Edge-Gamers Minecraft MAUL Integation
+# Edge-Gamers CPAS Integration | Spigot API
 
-**Permissions:**
-* *Cpas.baseban* - Allows a player to use a ban command, not necessarily to ban though
-* *Cpas.ban* - Allows a player to ban a lower rank for any amount of time
-* *Cpas.tempban* - Allows a player to ban up to 2 hours, if not O or higher is online
-* *Cpas.history* - Allows a player to use the /history [player] command
-* *Cpas.info* - Allows a player to use the /info [player] command
-* *Cpas.nick* - Allows a player to use the nick command, it’s a base so doesn’t give anything
-* *Cpas.nick.self* - Allows a player to nickname themselves (only according to forum name!)
-* *Cpas.nick.others* - Allows a player to nickname another player without this permission
-* *Cpas.nick.bypass* - Allows a player to nickname anyone, anything
-* *Cpas.realname* - Allows a player to use the /realname [player] command
-* *Cpas.unnick* - Allows a player to unnick themselves
-* *Cpas.unnick.others* - Allows a player to unnick other players
-* *Cpas.silent* - Disables join and leave messages for a player
+CpasSpigot is a RESTful API integration plugin which hooks into CpasLibrary by [Agent6262](https://github.com/agent6262/Java-CPAS-Library) and LuckPerms by [Lucko](https://github.com/lucko/LuckPerms). This plugin was made for the [Edge-Gamers Organization](https://edge-gamers.com)
+
+## Dependencies
+
+To handle permissions, LuckPerms is needed. You can view the latest version [here](https://ci.lucko.me/job/LuckPerms/)
+
+Additionally, it is advised to install [Vault](https://travis-ci.org/github/MilkBowl/VaultAPI) for added permission and user management support (though not needed)
 
 
-**Commands**: <Required> [Optional]
-* */ban <Player> <Duration> <Reason>* -- Bans a player for duration, with reason
-* */history <Player> [Entries]* -- Get a player’s ban history, default entries is 100
-* */playerinfo <Player>* -- Get information about a player (DS, Rank, etc)
-* */nick [Player] <Nickname>* -- Nicknames a player, or yourself, a given nickname
-* */realname [Player]* -- Get a player’s realname from a nickname
-* */realnick [Player]* -- Get a player’s nickname from a realname
-* */unnick [Player]* -- Unnick yourself, or a given player
+## Installation
 
+1) Install needed dependencies seen above.
+2) Download latest version of CpasSpigot (or compile if not available)
+3) Restart server, let it load, then shut it down to edit files.
+4) In configuration, set up the necessary fields, save, and restart server (see below for in-depth tutorial)
 
+## Configuration
 
+You can view the default configuration files as well as an in-depth tutorial on each field [here](https://github.com/garrettpfoy/CpasSpigot/wiki/Configuration)
 
+## Developers
+
+Interested in hooking into CpasSpigot's MAUL component but don't want to mess around with all of the dangers of editing the plugin and breaking something? Me too, so I made an in-depth API that allows you to fetch all of the information Cpas handles and read & write to it which takes affect cross-server. You can view the documentation on API usage [here](https://github.com/garrettpfoy/CpasSpigot/wiki/API-Usage)
+
+## Command & Permissions
+
+You can view what each command does, and how to properly use it [here](https://github.com/garrettpfoy/CpasSpigot/wiki/Commands). 
+
+Similarly, you can view all the permissions CpasSpigot defines, and what each one represents [here](https://github.com/garrettpfoy/CpasSpigot/wiki/Permissions)
+
+## License
+[Apache 2.0](https://choosealicense.com/licenses/apache-2.0/)
